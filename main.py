@@ -3,6 +3,10 @@ from collections import namedtuple
 from selenium import webdriver
 from pathlib import Path
 from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.support.wait import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.by import By
 import re
 import requests
 import json
@@ -12,12 +16,14 @@ import datetime
 import urllib.request
 
 Video = namedtuple("Video", "video_id link title duration views age")
+# chrome_options = Options().add_argument("--headless")
+# driver = webdriver.Chrome(ChromeDriverManager().install(), options=chrome_options)
 
 def get_videos(link):
     page = BeautifulSoup(download_page(link), "html.parser")
     print("Retrieved page.")
     driver.quit()
-    videos = parse_videos_page(page)    
+    videos = parse_videos_page(page)
     print("Videos parsed.")
     return videos
 
@@ -103,7 +109,7 @@ def scrape_videos(page_url):
         csv.writer(file).writerow(["Video Id","Watch URL","Title","Video Length","View Count","Age","Thumbnail URL",
             "Description","Published","Tags","Comment Count","Like Count","Dislike Count"])
         scrape_starttime = datetime.datetime.now()
-        print("Scraping {} Youtube: {} \n Pay attention to the messages below.".format(youtube_name, scrape_starttime))
+        print("Scraping {} Youtube: {} \nPay attention to the messages below.".format(youtube_name, scrape_starttime))
         videos = get_videos(page_url)
         num_processed = 0
         num_errors = 0
@@ -116,33 +122,37 @@ def scrape_videos(page_url):
                     page = BeautifulSoup(page_source, 'html.parser')
                     image_url = page.find("meta", property="og:image")["content"]
                     description = page.find("meta", property="og:description")["content"]
-                    published = page.find("meta", itemprop="datePublished")["content"]     
+                    published = page.find("meta", itemprop="datePublished")["content"]
                     tags = page.find("meta", {"name": "keywords"})["content"].replace(",",";")
 
-                    # comments
                     json_string=page.find('script',string=re.compile('ytInitialData'))
-                    
-                    
-                    # comment_count = ""
-                    # for c in comment_section.findChildren():
-                    #     comment_count += c
+                    json_string = str(json_string).split('var ytInitialData = ')[1].replace('</script>', '').replace(';','')
+                    extracted_json_text = str(json_string).strip()
+                    video_results=json.loads(extracted_json_text)
 
-                    # comment_count = header_section.find("span", "style-scope yt-formatted-string").text.replace(",", "")
-                    
-                    # video_divs = page.find_all("div", "style-scope ytd-grid-video-renderer")
-                    # num_video_divs = len(video_divs)
-                    # full_video_divs = []
-                    # for i in range(num_video_divs):
-                    #     if i % 11 == 0:
-                    #         full_video_divs.append(video_divs[i])
-                    # return [parse_video_div(div) for div in full_video_divs]
+                    like_count = (video_results["contents"]["twoColumnWatchNextResults"]["results"]
+                        ["results"]["contents"][0]["videoPrimaryInfoRenderer"]["videoActions"]["menuRenderer"]["topLevelButtons"][0]
+                        ["toggleButtonRenderer"]["defaultText"]["accessibility"]["accessibilityData"]["label"].replace(",",""))
 
-                   # comment_count = ""
-                    like_count = "20"
-                    dislike_count = "1"    
+                    dislike_count = (video_results["contents"]["twoColumnWatchNextResults"]["results"]
+                        ["results"]["contents"][0]["videoPrimaryInfoRenderer"]["videoActions"]["menuRenderer"]["topLevelButtons"][1]
+                        ["toggleButtonRenderer"]["defaultText"]["accessibility"]["accessibilityData"]["label"].replace(",",""))
+
+                    # time.sleep(1)
+                    # driver.get(video_url)
+                    # time.sleep(3)
+                    # lastHeight = driver.execute_script("return document.documentElement.scrollHeight")
+                    # page = BeautifulSoup(driver.page_source.encode('utf-8'), 'html.parser')
+                    #
+                    # json_string=page.find('script',string=re.compile('ytInitialData'))
+                    # json_string = str(json_string).split('var ytInitialData = ')[1].replace('</script>', '').replace(';','')
+                    # print(json_string)
+
+                    comment_count = ""
 
                     video = video + (image_url, description, published, tags, comment_count, like_count, dislike_count)
                     csv.writer(file).writerow(video)
+                    # print(video)
                     num_processed += 1
                     if num_processed % 100 == 0:
                         print("{} videos processed: {}".format(num_processed, datetime.datetime.now()))
@@ -157,20 +167,27 @@ def scrape_videos(page_url):
                     print("Program Stopped")
                     raise
                 break
-
-            # page = BeautifulSoup(page_source, 'html.parser')
-            # #likes = json.loads(page.find("button", "style-scope yt-icon-button").text.replace(",",""))
-            # # likebutton = page.find(attrs={"class": "like-button-renderer-like-button"})
-            # # #likes = likebutton.span.text
-            # # likes = page.find("yt-formatted-string", class="style-scope ytd-toggle-button-renderer style-default-active")["aria-label"]
-            # # # dislikebutton = page.find(attrs={"class": "like-button-renderer-dislike-button"})
-            # # # dislikes = dislikebutton.span.text
-            # # #dislikes = json.loads(page.find("button", "style-scope yt-icon-button").text.replace(",",""))
-            # # published = page.find("strong", "watch-time-text").text
-            # # video = video + (published,)
     file.close()
     print("Done! {} videos scraped in {}".format(len(videos), datetime.datetime.now() - scrape_starttime))
     print("{} errors.".format(num_errors))
+
+
+# def testVideoComments():
+#     video_url = 'https://www.youtube.com/watch?v=NP189MPfR7Q'
+#     driver = webdriver.Chrome(ChromeDriverManager().install())
+#     driver.set_page_load_timeout(30)
+#     driver.get(video_url)
+#     driver.execute_script("return document.documentElement.scrollHeight")
+#     for view_num in driver.find_elements_by_class_name("watch-view-count"):
+#         print('Number of views: ' + view_num.text.replace(' views', ''))
+#
+#     try:
+#         element = WebDriverWait(driver, 30).until(
+#             EC.presence_of_element_located((By.CLASS_NAME, "comment-section-header-renderer")))
+#         for comment_num in driver.find_elements_by_class_name("comment-section-header-renderer"):
+#             print(u'Number of comments: ' + comment_num.text.replace(u'COMMENTS • ', ''))
+#     finally:
+#         driver.quit()
 
 def __main__():
     videos = scrape_videos("https://www.youtube.com/c/OrdinaryThings/videos")
