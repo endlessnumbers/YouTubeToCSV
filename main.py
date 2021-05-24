@@ -138,17 +138,34 @@ def scrape_videos(page_url):
                         ["results"]["contents"][0]["videoPrimaryInfoRenderer"]["videoActions"]["menuRenderer"]["topLevelButtons"][1]
                         ["toggleButtonRenderer"]["defaultText"]["accessibility"]["accessibilityData"]["label"].replace(",",""))
 
-                    # time.sleep(1)
-                    # driver.get(video_url)
-                    # time.sleep(3)
-                    # lastHeight = driver.execute_script("return document.documentElement.scrollHeight")
-                    # page = BeautifulSoup(driver.page_source.encode('utf-8'), 'html.parser')
-                    #
-                    # json_string=page.find('script',string=re.compile('ytInitialData'))
-                    # json_string = str(json_string).split('var ytInitialData = ')[1].replace('</script>', '').replace(';','')
-                    # print(json_string)
+                    comment_section = page.find("div", "style-scope ytd-comments-header-renderer")
 
-                    comment_count = ""
+                    chrome_options = webdriver.ChromeOptions()
+                    chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
+                    chrome_options.add_experimental_option('useAutomationExtension', False)
+                    chrome_options.add_argument("--headless")
+                    chrome_options.add_argument("--disable-extensions")
+                    chrome_options.add_argument("--disable-gpu")
+                    chrome_options.add_argument("--disable-xss-auditor")
+                    chrome_options.add_argument("--no-sandbox")
+                    chrome_options.add_argument("--window-size=1920,1200")
+                    # chrome_options.add_argument("--log-level=3")
+                    driver = webdriver.Chrome(executable_path=ChromeDriverManager().install(), options=chrome_options)
+                    time.sleep(3)
+                    print("here's the get")
+                    driver.get(video_url)
+                    print("that was the get")
+                    time.sleep(3)
+                    # while comment_section is None:
+                    #     print("Looking for comments...")
+                    #     driver.execute_script("window.scrollTo(0, document.documentElement.scrollHeight);")
+                    #     time.sleep(2)
+                    #     page_source = driver.page_source.encode('utf-8')
+                    #     page = BeautifulSoup(page_source, 'html.parser')
+                    #     comment_section = page.find("div", "style-scope ytd-comments-header-renderer")
+                        
+                    comment_count = comment_section.find("span", "style-scope yt-formatted-string").text.replace(",", "")
+                    driver.quit()
 
                     video = video + (image_url, description, published, tags, comment_count, like_count, dislike_count)
                     csv.writer(file).writerow(video)
@@ -167,6 +184,7 @@ def scrape_videos(page_url):
                     print("Program Stopped")
                     raise
                 break
+            break
     file.close()
     print("Done! {} videos scraped in {}".format(len(videos), datetime.datetime.now() - scrape_starttime))
     print("{} errors.".format(num_errors))
