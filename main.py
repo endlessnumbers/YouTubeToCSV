@@ -7,6 +7,9 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
+from webdriver_manager.microsoft import EdgeChromiumDriverManager
+from msedge.selenium_tools import EdgeOptions
+from msedge.selenium_tools import Edge
 import re
 import requests
 import json
@@ -16,13 +19,10 @@ import datetime
 import urllib.request
 
 Video = namedtuple("Video", "video_id link title duration views age")
-# chrome_options = Options().add_argument("--headless")
-# driver = webdriver.Chrome(ChromeDriverManager().install(), options=chrome_options)
 
 def get_videos(link):
     page = BeautifulSoup(download_page(link), "html.parser")
-    print("Retrieved page.")
-    driver.quit()
+    print("Retrieved page.")    
     videos = parse_videos_page(page)
     print("Videos parsed.")
     return videos
@@ -41,8 +41,7 @@ def parse_video_div(div):
         video_id = div.find("a", "yt-simple-endpoint inline-block style-scope ytd-thumbnail")['href'].replace("/watch?v=", "")
         link = "https://www.youtube.com/watch?v=" + video_id
         title = div.find("a", "yt-simple-endpoint style-scope ytd-grid-video-renderer")['title']
-        # <a id="video-title" class="yt-simple-endpoint style-scope ytd-grid-video-renderer" aria-label="The Galaxy Brain Garbage of Gaia by Ordinary Things 2 weeks ago 23 minutes 326,453 views" title="The Galaxy Brain Garbage of Gaia" href="/watch?v=fiqLzPBBGTk">The Galaxy Brain Garbage of Gaia</a>
-        #in case a stream comes through without a duration tag
+ 
         if hasattr(div.find("span", "style-scope ytd-thumbnail-overlay-time-status-renderer"), 'contents'):
             duration = div.find("span", "style-scope ytd-thumbnail-overlay-time-status-renderer").text.replace('\n', '').replace(' ', '')
         else:
@@ -59,11 +58,12 @@ def parse_video_div(div):
 
 def download_page(page_url):
     print("Downloading page...")
-    try:
+    try:     
         global driver
-        driver = webdriver.Chrome(ChromeDriverManager().install())
+        chrome_options = webdriver.ChromeOptions()
+        chrome_options.add_argument("--mute-audio")
+        driver = webdriver.Chrome(ChromeDriverManager().install(),options=chrome_options)
         time.sleep(1)
-        #wait = WebDriverWait(driver, 8)
         driver.get(page_url)
         time.sleep(3)
         lastHeight = driver.execute_script("return document.documentElement.scrollHeight")
@@ -74,7 +74,7 @@ def download_page(page_url):
             if newHeight == lastHeight:
                 print("Page fully developed.")
                 break
-            lastHeight = newHeight
+            lastHeight = newHeight        
     except (KeyboardInterrupt, SystemExit):
         print("Program Stopped")
         raise
@@ -82,7 +82,9 @@ def download_page(page_url):
         print(e)
         print("Some kind of exception occurred. You should probably try again.")
         pass
+        return ""    
     return driver.page_source.encode('utf-8')
+
 
 def request_until_succeed(url):
 	req = urllib.request.Request(url)
@@ -117,6 +119,7 @@ def scrape_videos(page_url):
             attempts = 0
             while attempts < 3:
                 try:
+                    print("Scraping video {} of {}".format(num_processed + 1, len(videos)))
                     video_url = video[1]
                     page_source = request_until_succeed(video_url)
                     page = BeautifulSoup(page_source, 'html.parser')
@@ -140,36 +143,21 @@ def scrape_videos(page_url):
 
                     comment_section = page.find("div", "style-scope ytd-comments-header-renderer")
 
-                    chrome_options = webdriver.ChromeOptions()
-                    chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
-                    chrome_options.add_experimental_option('useAutomationExtension', False)
-                    chrome_options.add_argument("--headless")
-                    chrome_options.add_argument("--disable-extensions")
-                    chrome_options.add_argument("--disable-gpu")
-                    chrome_options.add_argument("--disable-xss-auditor")
-                    chrome_options.add_argument("--no-sandbox")
-                    chrome_options.add_argument("--window-size=1920,1200")
-                    # chrome_options.add_argument("--log-level=3")
-                    driver = webdriver.Chrome(executable_path=ChromeDriverManager().install(), options=chrome_options)
-                    time.sleep(3)
-                    print("here's the get")
                     driver.get(video_url)
-                    print("that was the get")
-                    time.sleep(3)
-                    # while comment_section is None:
-                    #     print("Looking for comments...")
-                    #     driver.execute_script("window.scrollTo(0, document.documentElement.scrollHeight);")
-                    #     time.sleep(2)
-                    #     page_source = driver.page_source.encode('utf-8')
-                    #     page = BeautifulSoup(page_source, 'html.parser')
-                    #     comment_section = page.find("div", "style-scope ytd-comments-header-renderer")
+                    time.sleep(2)
+                    while comment_section is None:
+                        print("Looking for comments...")
+                        driver.execute_script("window.scrollTo(0, document.documentElement.scrollHeight);")
+                        time.sleep(1)
+                        page_source = driver.page_source.encode('utf-8')
+                        page = BeautifulSoup(page_source, 'html.parser')
+                        comment_section = page.find("div", "style-scope ytd-comments-header-renderer")
                         
                     comment_count = comment_section.find("span", "style-scope yt-formatted-string").text.replace(",", "")
-                    driver.quit()
 
                     video = video + (image_url, description, published, tags, comment_count, like_count, dislike_count)
                     csv.writer(file).writerow(video)
-                    # print(video)
+                    print("Video completed.")
                     num_processed += 1
                     if num_processed % 100 == 0:
                         print("{} videos processed: {}".format(num_processed, datetime.datetime.now()))
@@ -185,30 +173,16 @@ def scrape_videos(page_url):
                     raise
                 break
             break
+    driver.quit()
     file.close()
     print("Done! {} videos scraped in {}".format(len(videos), datetime.datetime.now() - scrape_starttime))
     print("{} errors.".format(num_errors))
-
-
-# def testVideoComments():
-#     video_url = 'https://www.youtube.com/watch?v=NP189MPfR7Q'
-#     driver = webdriver.Chrome(ChromeDriverManager().install())
-#     driver.set_page_load_timeout(30)
-#     driver.get(video_url)
-#     driver.execute_script("return document.documentElement.scrollHeight")
-#     for view_num in driver.find_elements_by_class_name("watch-view-count"):
-#         print('Number of views: ' + view_num.text.replace(' views', ''))
-#
-#     try:
-#         element = WebDriverWait(driver, 30).until(
-#             EC.presence_of_element_located((By.CLASS_NAME, "comment-section-header-renderer")))
-#         for comment_num in driver.find_elements_by_class_name("comment-section-header-renderer"):
-#             print(u'Number of comments: ' + comment_num.text.replace(u'COMMENTS • ', ''))
-#     finally:
-#         driver.quit()
+    print("File output to folder: {}".format(folder_path))
 
 def __main__():
-    videos = scrape_videos("https://www.youtube.com/c/OrdinaryThings/videos")
+    print("Welcome to the YouTube To CSV tool")
+    channel_url = input("Please input the channel URL: ")
+    videos = scrape_videos(channel_url)
 
 if __name__ == "__main__":
     __main__()
