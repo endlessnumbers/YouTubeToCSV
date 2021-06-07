@@ -144,17 +144,19 @@ def scrape_videos(page_url):
 
                     driver.get(video_url)
                     time.sleep(3)
+                    scroll_height = 0
                     try_counter = 0
                     while comment_section is None:
-                        if try_counter > 3:
+                        if try_counter > 4:
                             print("Reloading page...")
                             driver.get(video_url)
                             time.sleep(3)
                             try_counter = 0
 
-                        print("Looking for comments...")
                         try_counter += 1
-                        driver.execute_script("window.scrollTo(0, 500);")
+                        scroll_height += 500
+                        print("Looking for comments...")
+                        driver.execute_script("window.scrollTo(0, {});".format(scroll_height))
                         time.sleep(1)
                         page_source = driver.page_source.encode('utf-8')
                         page = BeautifulSoup(page_source, 'html.parser')
