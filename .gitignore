@@ -1,6 +1,5 @@
 # created by virtualenv automatically
 main.spec
-__pycache__/main.cpython-39.pyc
 dist/_asyncio.pyd
 dist/_bz2.pyd
 dist/_ctypes.pyd
