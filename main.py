@@ -7,9 +7,6 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
-from webdriver_manager.microsoft import EdgeChromiumDriverManager
-from msedge.selenium_tools import EdgeOptions
-from msedge.selenium_tools import Edge
 import re
 import requests
 import json
@@ -22,7 +19,7 @@ Video = namedtuple("Video", "video_id link title duration views age")
 
 def get_videos(link):
     page = BeautifulSoup(download_page(link), "html.parser")
-    print("Retrieved page.")    
+    print("Retrieved page.")
     videos = parse_videos_page(page)
     print("Videos parsed.")
     return videos
@@ -41,7 +38,7 @@ def parse_video_div(div):
         video_id = div.find("a", "yt-simple-endpoint inline-block style-scope ytd-thumbnail")['href'].replace("/watch?v=", "")
         link = "https://www.youtube.com/watch?v=" + video_id
         title = div.find("a", "yt-simple-endpoint style-scope ytd-grid-video-renderer")['title']
- 
+
         if hasattr(div.find("span", "style-scope ytd-thumbnail-overlay-time-status-renderer"), 'contents'):
             duration = div.find("span", "style-scope ytd-thumbnail-overlay-time-status-renderer").text.replace('\n', '').replace(' ', '')
         else:
@@ -58,7 +55,7 @@ def parse_video_div(div):
 
 def download_page(page_url):
     print("Downloading page...")
-    try:     
+    try:
         global driver
         chrome_options = webdriver.ChromeOptions()
         chrome_options.add_argument("--mute-audio")
@@ -74,7 +71,7 @@ def download_page(page_url):
             if newHeight == lastHeight:
                 print("Page fully developed.")
                 break
-            lastHeight = newHeight        
+            lastHeight = newHeight
     except (KeyboardInterrupt, SystemExit):
         print("Program Stopped")
         raise
@@ -82,7 +79,7 @@ def download_page(page_url):
         print(e)
         print("Some kind of exception occurred. You should probably try again.")
         pass
-        return ""    
+        return ""
     return driver.page_source.encode('utf-8')
 
 
@@ -152,7 +149,7 @@ def scrape_videos(page_url):
                         page_source = driver.page_source.encode('utf-8')
                         page = BeautifulSoup(page_source, 'html.parser')
                         comment_section = page.find("div", "style-scope ytd-comments-header-renderer")
-                        
+
                     comment_count = comment_section.find("span", "style-scope yt-formatted-string").text.replace(",", "")
 
                     video = video + (image_url, description, published, tags, comment_count, like_count, dislike_count)
