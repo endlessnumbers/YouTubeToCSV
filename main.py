@@ -7,9 +7,6 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
-from webdriver_manager.microsoft import EdgeChromiumDriverManager
-from msedge.selenium_tools import EdgeOptions
-from msedge.selenium_tools import Edge
 import re
 import requests
 import json
@@ -58,12 +55,14 @@ def parse_video_div(div):
 
 def download_page(page_url):
     print("Downloading page...")
-    try:     
+    try:
         global driver
         chrome_options = webdriver.ChromeOptions()
         chrome_options.add_argument("--mute-audio")
+        chrome_options.add_experimental_option('excludeSwitches', ['enable-logging'])
         driver = webdriver.Chrome(ChromeDriverManager().install(),options=chrome_options)
         time.sleep(1)
+        print(page_url)
         driver.get(page_url)
         time.sleep(3)
         lastHeight = driver.execute_script("return document.documentElement.scrollHeight")
@@ -78,13 +77,12 @@ def download_page(page_url):
     except (KeyboardInterrupt, SystemExit):
         print("Program Stopped")
         raise
-    except Exception as e:
+    except Exception as e:        
         print(e)
         print("Some kind of exception occurred. You should probably try again.")
         pass
         return ""    
     return driver.page_source.encode('utf-8')
-
 
 def request_until_succeed(url):
 	req = urllib.request.Request(url)
@@ -172,7 +170,6 @@ def scrape_videos(page_url):
                     print("Program Stopped")
                     raise
                 break
-            break
     driver.quit()
     file.close()
     print("Done! {} videos scraped in {}".format(len(videos), datetime.datetime.now() - scrape_starttime))
@@ -183,6 +180,7 @@ def __main__():
     print("Welcome to the YouTube To CSV tool")
     channel_url = input("Please input the channel URL: ")
     videos = scrape_videos(channel_url)
+    input()
 
 if __name__ == "__main__":
     __main__()
