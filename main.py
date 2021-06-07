@@ -12,6 +12,7 @@ import requests
 import json
 import csv
 import time
+import os
 import datetime
 import urllib.request
 
@@ -77,7 +78,7 @@ def download_page(page_url):
     except (KeyboardInterrupt, SystemExit):
         print("Program Stopped")
         raise
-    except Exception as e:        
+    except Exception as e:
         print(e)
         print("Some kind of exception occurred. You should probably try again.")
         pass
@@ -104,8 +105,8 @@ def scrape_videos(page_url):
         youtube_name = page_url[page_url.find("channel")+8:page_url.find("videos")-1]
     else:
         youtube_name = page_url.replace('https://www.youtube.com','').replace('/c/','').replace('/channel/','').replace('/videos','')
-    folder_path = str(Path.home() / "Downloads")
-    with open ('{}\\{}_YouTube.csv'.format(folder_path, youtube_name), 'w', newline='', encoding='utf-8') as file:
+    folder_path = str(os.path.join(Path.home(),"Downloads"))
+    with open ('{}/{}_YouTube.csv'.format(folder_path, youtube_name), 'w', newline='', encoding='utf-8') as file:
         csv.writer(file).writerow(["Video Id","Watch URL","Title","Video Length","View Count","Age","Thumbnail URL",
             "Description","Published","Tags","Comment Count","Like Count","Dislike Count"])
         scrape_starttime = datetime.datetime.now()
@@ -142,10 +143,18 @@ def scrape_videos(page_url):
                     comment_section = page.find("div", "style-scope ytd-comments-header-renderer")
 
                     driver.get(video_url)
-                    time.sleep(2)
+                    time.sleep(3)
+                    try_counter = 0
                     while comment_section is None:
+                        if try_counter > 3:
+                            print("Reloading page...")
+                            driver.get(video_url)
+                            time.sleep(3)
+                            try_counter = 0
+
                         print("Looking for comments...")
-                        driver.execute_script("window.scrollTo(0, document.documentElement.scrollHeight);")
+                        try_counter += 1
+                        driver.execute_script("window.scrollTo(0, 500);")
                         time.sleep(1)
                         page_source = driver.page_source.encode('utf-8')
                         page = BeautifulSoup(page_source, 'html.parser')
@@ -178,7 +187,7 @@ def scrape_videos(page_url):
 
 def __main__():
     print("Welcome to the YouTube To CSV tool")
-    channel_url = input("Please input the channel URL: ")
+    channel_url = input("Please input the channel's videos page URL: ")
     videos = scrape_videos(channel_url)
     input()
 
